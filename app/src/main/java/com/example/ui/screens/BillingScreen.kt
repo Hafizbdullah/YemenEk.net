@@ -29,6 +29,10 @@ import com.example.data.model.PermissionKeys
 import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.VibrantGreen
 
+/**
+ * شاشة إدارة الفواتير والمستحقات (BillingScreen).
+ * تعرض قائمة بالصناديق/المشتركين أو الفواتير المفلترة بناءً على حالة البحث والفلترة المختارة.
+ */
 @Composable
 fun BillingScreen(
     bills: List<BillEntity>,
@@ -42,10 +46,11 @@ fun BillingScreen(
     onAddBillClick: () -> Unit,
     onPayClick: (BillEntity, Double, String) -> Unit
 ) {
-    // نافذة الدفع الجزئي للفاتورة المحددة
+    // إدارة حالة نافذة الدفع الجزئي للفاتورة المحددة
     var payingBill by remember { mutableStateOf<BillEntity?>(null) }
     var selectedSubscriberId by remember { mutableStateOf<String?>(null) }
 
+    // عرض حوار الدفع عند تحديد فاتورة للتحصيل
     payingBill?.let { target ->
         PaymentDialog(
             bill = target,
@@ -59,7 +64,10 @@ fun BillingScreen(
 
     val context = LocalContext.current
 
+    // جلب بيانات المشترك المحدد حالياً
     val selectedSubscriber = selectedSubscriberId?.let { id -> users.firstOrNull { it.id == id } }
+    
+    // تصفية فواتير المشترك المحدد فقط بناءً على خيارات البحث والفلترة
     val selectedSubscriberBills = remember(bills, selectedSubscriberId, searchQuery, filter) {
         val id = selectedSubscriberId ?: return@remember emptyList()
         bills.filter { bill ->
@@ -74,6 +82,7 @@ fun BillingScreen(
         }
     }
 
+    // تصفية جميع الفواتير في النظام
     val filteredBills = remember(bills, searchQuery, filter) {
         bills.filter { bill ->
             val matchesSearch = searchQuery.isEmpty() ||
@@ -82,7 +91,6 @@ fun BillingScreen(
 
             val matchesFilter = when (filter) {
                 "UNPAID" -> bill.status == "UNPAID"
-                // المتأخرات تشمل الفاتورة المدفوعة جزئياً لأنها ما زال عليها مبلغ مستحق.
                 "OVERDUE" -> bill.status == "OVERDUE" || bill.status == "PARTIAL"
                 "PAID" -> bill.status == "PAID"
                 else -> true
@@ -92,6 +100,7 @@ fun BillingScreen(
         }
     }
 
+    // تجميع المشتركين حسب خيارات الفلترة المحددة
     val subscriberList = remember(bills, users, searchQuery, filter) {
         val eligibleBills = when (filter) {
             "UNPAID" -> bills.filter { it.status == "UNPAID" }
@@ -104,12 +113,9 @@ fun BillingScreen(
             val matchesSearch = searchQuery.isEmpty() ||
                 user.name.contains(searchQuery, ignoreCase = true) ||
                 user.userIdCode.contains(searchQuery, ignoreCase = true)
-            // في "جميع الفواتير" نعرض كل المشتركين، حتى من لم تصدر له فاتورة بعد.
-            // في الفلاتر الأخرى نعرض فقط المشتركين الذين لديهم فاتورة مطابقة.
             matchesSearch && (filter == "ALL" || byUser[user.id].orEmpty().isNotEmpty())
         }.sortedBy { it.name }
     }
-
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -117,7 +123,7 @@ fun BillingScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            // Search Bar
+            // شريط البحث (Search Bar)
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
@@ -139,7 +145,7 @@ fun BillingScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Scrollable Filter Chips (LazyRow) لمنع انضغاط الأزرار رأسيًا
+            // شريط الفلاتر الأفقية (Filter Chips)
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -181,9 +187,10 @@ fun BillingScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // عرض محتوى الصفحة بناءً على الفلتر والمشترك المحدد
             if (filter == "ALL" && selectedSubscriberId == null) {
                 if (subscriberList.isEmpty()) {
-                    EmptyBillingState(text = "لا يوجد مشترك لديه فواتير بعد")
+                    EmptyBillingState(text = "لا يوجد مشترك لديه فواتير بعد", modifier = Modifier.weight(1f))
                 } else {
                     LazyColumn(
                         modifier = Modifier.weight(1f),
@@ -223,7 +230,7 @@ fun BillingScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 if (selectedSubscriberBills.isEmpty()) {
-                    EmptyBillingState(text = "لا توجد فواتير مطابقة لهذا المشترك")
+                    EmptyBillingState(text = "لا توجد فواتير مطابقة لهذا المشترك", modifier = Modifier.weight(1f))
                 } else {
                     LazyColumn(
                         modifier = Modifier.weight(1f),
@@ -242,7 +249,7 @@ fun BillingScreen(
                     }
                 }
             } else if (filteredBills.isEmpty()) {
-                EmptyBillingState(text = "لا توجد فواتير مطابقة للبحث أو الفلتر")
+                EmptyBillingState(text = "لا توجد فواتير مطابقة للبحث أو الفلتر", modifier = Modifier.weight(1f))
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
@@ -262,7 +269,7 @@ fun BillingScreen(
             }
         }
 
-        // Floating Action Button for Adding Bill (Only if canAddBill is true)
+        // زر إضافة فاتورة جديدة (Floating Action Button)
         if (canPerformAction(PermissionKeys.CAN_ADD_BILL)) {
             FloatingActionButton(
                 onClick = onAddBillClick,
@@ -279,10 +286,16 @@ fun BillingScreen(
     }
 }
 
+/**
+ * عنصر واجهة يعرض شاشة فارغة مع رسالة مخصصة وأيقونة توضيحية.
+ */
 @Composable
-private fun EmptyBillingState(text: String) {
+private fun EmptyBillingState(
+    text: String,
+    modifier: Modifier = Modifier
+) {
     Box(
-        modifier = Modifier.fillMaxWidth().weight(1f),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -298,6 +311,9 @@ private fun EmptyBillingState(text: String) {
     }
 }
 
+/**
+ * بطاقة عرض بيانات المشترك والمبالغ المستحقة والمدفوعة.
+ */
 @Composable
 private fun SubscriberBillsCard(
     user: UserEntity,
@@ -318,11 +334,15 @@ private fun SubscriberBillsCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(48.dp).background(ElectricBlue, RoundedCornerShape(14.dp)),
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(ElectricBlue, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White)
@@ -348,6 +368,9 @@ private fun SubscriberBillsCard(
     }
 }
 
+/**
+ * بطاقة تفاصيل الفاتورة وتوفر خيارات التفاصيل والطباعة والدفع.
+ */
 @Composable
 fun DetailedBillCard(
     bill: BillEntity,
