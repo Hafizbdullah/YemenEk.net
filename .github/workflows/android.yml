@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Debug APK
+    name: Build Debug APK & Send to Telegram
     runs-on: ubuntu-latest
 
     steps:
@@ -41,9 +41,6 @@ jobs:
         shell: bash
         run: |
           set -e
-          # signingConfigs.create("debugConfig") في app/build.gradle.kts هو إعداد توقيع مخصص،
-          # وآلية AGP لإنشاء ~/.android/debug.keystore تلقائيًا تعمل فقط مع إعداد التوقيع
-          # الافتراضي المسمى حرفيًا "debug"، لذلك يجب توليد المفتاح يدويًا هنا.
           keytool -genkeypair -v \
             -keystore "${{ github.workspace }}/debug.keystore" \
             -storepass android -keypass android \
@@ -54,17 +51,19 @@ jobs:
       - name: Build Debug APK
         run: gradle :app:assembleDebug --stacktrace --no-daemon
 
-      - name: Verify APK
+      - name: Send APK to Telegram
         shell: bash
         run: |
-          set -e
-          ls -lah app/build/outputs/apk/debug/
-          test -n "$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          # البحث عن ملف الـ APK النامج
+          APK_PATH=$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)
 
-      # - name: Upload APK
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ElectricityBillingAp-debug
-      #     path: app/build/outputs/apk/debug/*.apk
-      #     if-no-files-found: error
-      #     retention-days: 1
+          if [ -f "$APK_PATH" ]; then
+            echo "Uploading $APK_PATH to Telegram..."
+            curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+                 -F document=@"$APK_PATH" \
+                 -F caption="✅ تم بناء التطبيق بنجاح!%0A📱 المشروع: ${{ github.repository }}" \
+                 "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
+          else
+            echo "Error: APK file not found!"
+            exit 1
+          fi
