@@ -1,4 +1,4 @@
-Name: Android CI
+name: Android CI
 
 on:
   push:
@@ -54,7 +54,7 @@ jobs:
       - name: Send APK to Telegram
         shell: bash
         run: |
-          # البحث عن ملف الـ APK النامج
+          # البحث عن ملف الـ APK الناتج
           APK_PATH=$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)
 
           if [ -f "$APK_PATH" ]; then
