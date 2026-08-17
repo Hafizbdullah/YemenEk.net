@@ -1,4 +1,4 @@
-name: Android CI
+Name: Android CI
 
 on:
   push:
@@ -61,10 +61,10 @@ jobs:
           ls -lah app/build/outputs/apk/debug/
           test -n "$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ElectricityBillingAp-debug
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-          retention-days: 1
+      # - name: Upload APK
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ElectricityBillingAp-debug
+      #     path: app/build/outputs/apk/debug/*.apk
+      #     if-no-files-found: error
+      #     retention-days: 1
